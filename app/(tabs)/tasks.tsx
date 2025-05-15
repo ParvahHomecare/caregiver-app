@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, FlatList, RefreshControl, ActivityIndicator, TextInput, Alert } from 'react-native';
-import { useAuth } from '../../context/AuthContext';
-import { fetchTasks, updateTaskStatus } from '../../lib/supabase';
-import dayjs from 'dayjs';
-import colors from '../../constants/colors';
+import { StyleSheet, View, Text, TouchableOpacity, FlatList, ActivityIndicator, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Calendar, CircleCheck as CheckCircle, CircleAlert as AlertCircle, Circle as XCircle, Clock, Search, Filter } from 'lucide-react-native';
+import { Calendar, CircleAlert as AlertCircle, Clock, Search, Filter, CheckCircle, XCircle } from 'lucide-react-native';
+import colors from '../../constants/colors';
+import { fetchTasks } from '../../lib/supabase';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import { Picker } from '@react-native-picker/picker';
+import dayjs from 'dayjs';
 
 export default function TasksScreen() {
   const { user } = useAuth();
@@ -69,74 +69,6 @@ export default function TasksScreen() {
     loadTasks();
   }, [loadTasks]);
 
-  const handleCompleteTask = useCallback((taskId) => {
-    
-    Alert.alert(
-      'Complete Task',
-      'Are you sure you want to mark this task as complete?',
-      [
-        {
-          text: 'No',
-          style: 'cancel'
-        },
-        {
-          text: 'Yes',
-          onPress: async () => {
-            
-            try {
-              const updatedTasks = tasks.map(task => 
-                task.id === taskId ? { ...task, status: 'completed' } : task
-              );
-              setTasks(updatedTasks);
-              
-              const { error } = await updateTaskStatus(taskId, 'completed');
-              
-              if (error) {
-                throw error;
-              }
-            } catch (err) {
-              console.error('Error in handleCompleteTask:', err.message);
-              loadTasks();
-            }
-          }
-        }
-      ]
-    );
-  });
-
-  const handleRevertStatus = async (taskId) => {
-    Alert.alert(
-      'Revert Task Status',
-      'Are you sure you want to revert this task back to pending?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel'
-        },
-        {
-          text: 'Yes, revert to pending',
-          onPress: async () => {
-            try {
-              const updatedTasks = tasks.map(task => 
-                task.id === taskId ? { ...task, status: 'pending', completed_at: null } : task
-              );
-              setTasks(updatedTasks);
-              
-              const { error } = await updateTaskStatus(taskId, 'pending');
-              
-              if (error) {
-                throw error;
-              }
-            } catch (err) {
-              console.error('Error reverting task status:', err);
-              loadTasks();
-            }
-          }
-        }
-      ]
-    );
-  };
-
   const renderTaskItem = ({ item }) => {
     const getTaskStatusColor = () => {
       switch (item.status) {
@@ -180,18 +112,12 @@ export default function TasksScreen() {
     const scheduledDate = dayjs(item.scheduled_time).format('MMM D');
     const scheduledTime = dayjs(item.scheduled_time).format('h:mm A');
     const completedAt = item.completed_at ? dayjs(item.completed_at).format('MMM D, h:mm A') : null;
-    const isPending = item.status === 'pending';
-    const canRevert = ['completed', 'completed_late'].includes(item.status);
     
     return (
-      <TouchableOpacity
-        style={[
-          styles.taskItem,
-          { borderLeftColor: getTaskStatusColor() }
-        ]}
-        disabled={!isPending}
-        onPress={() => isPending && handleCompleteTask(item.id)}
-      >
+      <View style={[
+        styles.taskItem,
+        { borderLeftColor: getTaskStatusColor() }
+      ]}>
         <View style={styles.taskHeader}>
           <View style={styles.taskDateContainer}>
             <Calendar size={16} color={colors.textSecondary} />
@@ -212,25 +138,6 @@ export default function TasksScreen() {
         
         <Text style={styles.taskTitle}>{item.title}</Text>
         
-        <View style={styles.taskInfoContainer}>
-          {isPending && (
-            <TouchableOpacity 
-              style={styles.completeButton}
-              onPress={() => handleCompleteTask(item.id)}
-            >
-              <Text style={styles.completeButtonText}>Complete</Text>
-            </TouchableOpacity>
-          )}
-          {canRevert && (
-            <TouchableOpacity 
-              style={styles.revertButton}
-              onPress={() => handleRevertStatus(item.id)}
-            >
-              <Text style={styles.revertButtonText}>Revert</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-        
         {completedAt && (
           <Text style={styles.completedAt}>
             Completed: {completedAt}
@@ -242,7 +149,7 @@ export default function TasksScreen() {
             {item.description}
           </Text>
         )}
-      </TouchableOpacity>
+      </View>
     );
   };
 
@@ -476,26 +383,11 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 6,
   },
-  taskInfoContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  taskPatient: {
-    fontFamily: 'Montserrat-Medium',
-    fontSize: 13,
+  completedAt: {
+    fontFamily: 'Montserrat-Regular',
+    fontSize: 12,
     color: colors.textSecondary,
-  },
-  completeButton: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 4,
-  },
-  completeButtonText: {
-    fontFamily: 'Montserrat-Medium',
-    fontSize: 11,
-    color: '#fff',
+    marginTop: 4,
   },
   emptyContainer: {
     flex: 1,
@@ -542,25 +434,5 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-SemiBold',
     fontSize: 14,
     color: '#fff',
-  },
-  completedAt: {
-    fontFamily: 'Montserrat-Regular',
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  revertButton: {
-    backgroundColor: colors.background,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginLeft: 8,
-  },
-  revertButtonText: {
-    fontFamily: 'Montserrat-Medium',
-    fontSize: 11,
-    color: colors.textSecondary,
   },
 });
