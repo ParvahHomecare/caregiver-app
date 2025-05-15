@@ -69,41 +69,6 @@ export default function TasksScreen() {
     loadTasks();
   }, [loadTasks]);
 
-  const handleCompleteTask = useCallback((taskId) => {
-    
-    Alert.alert(
-      'Complete Task',
-      'Are you sure you want to mark this task as complete?',
-      [
-        {
-          text: 'No',
-          style: 'cancel'
-        },
-        {
-          text: 'Yes',
-          onPress: async () => {
-            
-            try {
-              const updatedTasks = tasks.map(task => 
-                task.id === taskId ? { ...task, status: 'completed' } : task
-              );
-              setTasks(updatedTasks);
-              
-              const { error } = await updateTaskStatus(taskId, 'completed');
-              
-              if (error) {
-                throw error;
-              }
-            } catch (err) {
-              console.error('Error in handleCompleteTask:', err.message);
-              loadTasks();
-            }
-          }
-        }
-      ]
-    );
-  });
-
   const handleRevertStatus = async (taskId) => {
     Alert.alert(
       'Revert Task Status',
@@ -190,7 +155,6 @@ export default function TasksScreen() {
           { borderLeftColor: getTaskStatusColor() }
         ]}
         disabled={!isPending}
-        onPress={() => isPending && handleCompleteTask(item.id)}
       >
         <View style={styles.taskHeader}>
           <View style={styles.taskDateContainer}>
@@ -211,16 +175,6 @@ export default function TasksScreen() {
         </View>
         
         <Text style={styles.taskTitle}>{item.title}</Text>
-        
-        <View style={styles.taskInfoContainer}>
-          {isPending && (
-            <TouchableOpacity 
-              style={styles.completeButton}
-              onPress={() => handleCompleteTask(item.id)}
-            >
-              <Text style={styles.completeButtonText}>Complete</Text>
-            </TouchableOpacity>
-          )}
           {canRevert && (
             <TouchableOpacity 
               style={styles.revertButton}
