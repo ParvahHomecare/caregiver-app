@@ -14,6 +14,10 @@ export default {
     ios: {
       supportsTablet: true
     },
+    android: {
+      package: 'com.parvahhealthcare.caregiver',
+      versionCode: 2 
+    },
     web: {
       bundler: 'metro',
       output: 'single',
