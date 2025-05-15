@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "dev": "expo start"
+  },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.8",
     "expo-constants": "~15.4.5",
