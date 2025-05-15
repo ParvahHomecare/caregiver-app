@@ -175,6 +175,8 @@ export default function TasksScreen() {
         </View>
         
         <Text style={styles.taskTitle}>{item.title}</Text>
+        
+        <View style={styles.taskInfoContainer}>
           {canRevert && (
             <TouchableOpacity 
               style={styles.revertButton}
