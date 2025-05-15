@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, FlatList, ActivityIndicator, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Calendar, CircleAlert as AlertCircle, Clock, Search, Filter, CheckCircle, XCircle } from 'lucide-react-native';
+import { Calendar, CircleAlert as AlertCircle, Clock, Search, Filter, CircleCheck as CheckCircle, Circle as XCircle } from 'lucide-react-native';
 import colors from '../../constants/colors';
 import { fetchTasks } from '../../lib/supabase';
 import Animated, { FadeInUp } from 'react-native-reanimated';
