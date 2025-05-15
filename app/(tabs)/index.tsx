@@ -7,6 +7,7 @@ import colors from '../../constants/colors';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Clock, CircleCheck as CheckCircle, CircleAlert as AlertCircle, Circle as XCircle } from 'lucide-react-native';
 import Animated, { FadeInUp, FadeInRight } from 'react-native-reanimated';
+import TaskProofModal from '../../components/TaskProofModal';
 
 export default function TodayScreen() {
   const { user } = useAuth();
@@ -14,6 +15,8 @@ export default function TodayScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [showProofModal, setShowProofModal] = useState(false);
 
   const loadTasks = useCallback(async () => {
     if (!user) return;
@@ -46,46 +49,69 @@ export default function TodayScreen() {
     loadTasks();
   }, [loadTasks]);
 
-  const handleCompleteTask = useCallback((taskId) => {
-    
-    Alert.alert(
-      'Complete Task',
-      'Are you sure you want to mark this task as complete?',
-      [
-        {
-          text: 'No',
-          style: 'cancel'
-        },
-        {
-          text: 'Yes',
-          onPress: async () => {
-            
-            try {
-              // Optimistically update the UI
-              setTasks(
-                tasks.map(task => 
-                  task.id === taskId ? { ...task, status: 'completed' } : task
-                )
-              );
-              
-              // Update in the backend
-              const { error } = await updateTaskStatus(taskId, 'completed');
-              
-              if (error) {
-                throw error;
+  const handleCompleteTask = useCallback((task) => {
+    if (task.task_proof_enabled) {
+      setSelectedTask(task);
+      setShowProofModal(true);
+    } else {
+      Alert.alert(
+        'Complete Task',
+        'Are you sure you want to mark this task as complete?',
+        [
+          {
+            text: 'No',
+            style: 'cancel'
+          },
+          {
+            text: 'Yes',
+            onPress: async () => {
+              try {
+                setTasks(
+                  tasks.map(t => 
+                    t.id === task.id ? { ...t, status: 'completed' } : t
+                  )
+                );
+                
+                const { error } = await updateTaskStatus(task.id, 'completed');
+                
+                if (error) {
+                  throw error;
+                }
+              } catch (err) {
+                console.error('Error in handleCompleteTask:', err.message);
+                loadTasks();
               }
-              
-              console.log(`Task ${taskId} marked as complete`);
-            } catch (err) {
-              console.error('Error in handleCompleteTask:', err.message);
-              // Revert optimistic update
-              loadTasks();
             }
           }
-        }
-      ]
-    );
-  });
+        ]
+      );
+    }
+  }, [tasks, loadTasks]);
+
+  const handleProofSuccess = async () => {
+    if (!selectedTask) return;
+    
+    try {
+      setTasks(
+        tasks.map(task => 
+          task.id === selectedTask.id ? { ...task, status: 'completed' } : task
+        )
+      );
+      
+      const { error } = await updateTaskStatus(selectedTask.id, 'completed');
+      
+      if (error) {
+        throw error;
+      }
+      
+      setShowProofModal(false);
+      setSelectedTask(null);
+    } catch (err) {
+      console.error('Error completing task:', err);
+      Alert.alert('Error', 'Failed to complete task. Please try again.');
+      loadTasks();
+    }
+  };
 
   const renderTaskItem = ({ item, index }) => {
     const getTaskStatusColor = () => {
@@ -126,7 +152,7 @@ export default function TodayScreen() {
             isMissed && styles.missedTask
           ]}
           disabled={isCompleted || isMissed}
-          onPress={() => handleCompleteTask(item.id)}
+          onPress={() => handleCompleteTask(item)}
         >
           <View style={styles.taskHeader}>
             <View style={styles.taskTimeContainer}>
@@ -149,6 +175,14 @@ export default function TodayScreen() {
           
           {item.description && (
             <Text style={styles.taskDescription}>{item.description}</Text>
+          )}
+
+          {item.task_proof_enabled && item.status === 'pending' && (
+            <View style={styles.proofBadge}>
+              <Text style={styles.proofBadgeText}>
+                Requires {item.task_proof_type} proof
+              </Text>
+            </View>
           )}
         </TouchableOpacity>
       </Animated.View>
@@ -206,22 +240,37 @@ export default function TodayScreen() {
           </TouchableOpacity>
         </View>
       ) : (
-        <FlatList
-          data={tasks}
-          renderItem={renderTaskItem}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.taskList}
-          ListHeaderComponent={renderHeader}
-          ListEmptyComponent={renderEmptyComponent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={[colors.primary]}
-              tintColor={colors.primary}
+        <>
+          <FlatList
+            data={tasks}
+            renderItem={renderTaskItem}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.taskList}
+            ListHeaderComponent={renderHeader}
+            ListEmptyComponent={renderEmptyComponent}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={[colors.primary]}
+                tintColor={colors.primary}
+              />
+            }
+          />
+
+          {selectedTask && (
+            <TaskProofModal
+              visible={showProofModal}
+              taskId={selectedTask.id}
+              proofType={selectedTask.task_proof_type}
+              onClose={() => {
+                setShowProofModal(false);
+                setSelectedTask(null);
+              }}
+              onSuccess={handleProofSuccess}
             />
-          }
-        />
+          )}
+        </>
       )}
     </SafeAreaView>
   );
@@ -389,5 +438,18 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-SemiBold',
     fontSize: 14,
     color: '#fff',
+  },
+  proofBadge: {
+    backgroundColor: colors.primaryLight + '20',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+    marginTop: 8,
+  },
+  proofBadgeText: {
+    fontFamily: 'Montserrat-Medium',
+    fontSize: 12,
+    color: colors.primary,
   },
 });
