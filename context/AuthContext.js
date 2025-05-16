@@ -57,11 +57,23 @@ export const AuthProvider = ({ children }) => {
       if (!isMounted.current) return { success: false, error: 'Component unmounted' };
       setLoading(true);
       const { data, error } = await signIn(email, password);
-      if (error) throw error;
+      
+      if (error) {
+        // Handle specific error cases
+        if (error.message?.includes('invalid_credentials')) {
+          return { success: false, error: 'Invalid email or password. Please check your credentials and try again.' };
+        }
+        throw error;
+      }
+      
       return { success: true };
     } catch (error) {
       console.error('Login error:', error);
-      return { success: false, error: error.message };
+      // Return a user-friendly error message
+      return { 
+        success: false, 
+        error: 'Unable to sign in at this time. Please try again later.' 
+      };
     } finally {
       if (isMounted.current) {
         setLoading(false);
@@ -93,23 +105,27 @@ export const AuthProvider = ({ children }) => {
       if (!isMounted.current) return { success: false, error: 'Component unmounted' };
       setLoading(true);
       
-      // Attempt to sign out from Supabase first
+      // Clear local state first
+      if (isMounted.current) {
+        setUser(null);
+        setSession(null);
+      }
+
+      // Attempt to sign out from Supabase
       const { error } = await signOut();
       
       // If there's no error or if the error is just that the session wasn't found,
-      // we can safely clear the local state
+      // consider it a successful logout
       if (!error || error.message?.includes('session_not_found')) {
-        if (isMounted.current) {
-          setUser(null);
-          setSession(null);
-        }
         return { success: true };
       }
       
+      // For any other error, throw it
       throw error;
     } catch (error) {
       console.error('Logout error:', error);
-      return { success: false, error: error.message };
+      // Even if there's an error with Supabase, we've already cleared the local state
+      return { success: true };
     } finally {
       if (isMounted.current) {
         setLoading(false);

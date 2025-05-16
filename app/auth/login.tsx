@@ -44,14 +44,8 @@ export default function Login() {
       if (success) {
         router.replace('/(tabs)');
       } else {
-        // Handle specific error messages
-        if (loginError?.includes('Invalid email or password')) {
-          setError('Invalid email or password. Please check your credentials and try again.');
-        } else if (loginError?.includes('Email not confirmed')) {
-          setError('Please verify your email address before logging in.');
-        } else {
-          setError(loginError || 'An error occurred while logging in. Please try again.');
-        }
+        // Display the error message from the login function
+        setError(loginError || 'An error occurred while logging in. Please try again.');
       }
     } catch (err) {
       console.error('Login error:', err);
