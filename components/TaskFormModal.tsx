@@ -11,6 +11,7 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Switch,
 } from 'react-native';
 import { X, Calendar, Trash2 } from 'lucide-react-native';
 import colors from '../constants/colors';
@@ -33,6 +34,11 @@ const DAYS_OF_WEEK = [
   { label: 'Friday', value: 5 },
   { label: 'Saturday', value: 6 },
   { label: 'Sunday', value: 0 },
+];
+
+const PROOF_TYPES = [
+  { label: 'Photo proof', value: 'photo' },
+  { label: 'Audio proof', value: 'audio' },
 ];
 
 const DateTimeInput = ({ 
@@ -128,6 +134,8 @@ export default function TaskFormModal({ visible, task, caregivers, patients, onC
   const [availablePatients, setAvailablePatients] = useState([]);
   const [frequencyType, setFrequencyType] = useState('once');
   const [selectedDays, setSelectedDays] = useState([]);
+  const [taskProofEnabled, setTaskProofEnabled] = useState(false);
+  const [taskProofType, setTaskProofType] = useState('photo');
 
   useEffect(() => {
     if (task) {
@@ -141,6 +149,8 @@ export default function TaskFormModal({ visible, task, caregivers, patients, onC
       setPatientId(task.patient_id || '');
       setFrequencyType(task.frequency_type || 'once');
       setSelectedDays(task.frequency_days || []);
+      setTaskProofEnabled(task.task_proof_enabled || false);
+      setTaskProofType(task.task_proof_type || 'photo');
     } else {
       resetForm();
     }
@@ -183,6 +193,8 @@ export default function TaskFormModal({ visible, task, caregivers, patients, onC
     setError('');
     setFrequencyType('once');
     setSelectedDays([]);
+    setTaskProofEnabled(false);
+    setTaskProofType('photo');
   };
 
   const handleClose = () => {
@@ -213,6 +225,10 @@ export default function TaskFormModal({ visible, task, caregivers, patients, onC
     }
     if (frequencyType === 'weekly' && selectedDays.length === 0) {
       setError('Please select at least one day for weekly tasks');
+      return false;
+    }
+    if (taskProofEnabled && !taskProofType) {
+      setError('Please select a proof type');
       return false;
     }
     return true;
@@ -246,6 +262,8 @@ export default function TaskFormModal({ visible, task, caregivers, patients, onC
         patient_id: patientId,
         frequency_type: frequencyType,
         frequency_days: frequencyType === 'weekly' ? selectedDays : null,
+        task_proof_enabled: taskProofEnabled,
+        task_proof_type: taskProofEnabled ? taskProofType : null,
       };
 
       const { error: saveError } = task
@@ -518,6 +536,42 @@ export default function TaskFormModal({ visible, task, caregivers, patients, onC
                 </Picker>
               </View>
             </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Proof Required</Text>
+              <View style={styles.proofToggleContainer}>
+                <Switch
+                  value={taskProofEnabled}
+                  onValueChange={setTaskProofEnabled}
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                  thumbColor={Platform.OS === 'ios' ? '#fff' : taskProofEnabled ? colors.primaryLight : '#f4f3f4'}
+                />
+                <Text style={styles.proofToggleLabel}>
+                  {taskProofEnabled ? 'Yes' : 'No'}
+                </Text>
+              </View>
+            </View>
+
+            {taskProofEnabled && (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Proof Type</Text>
+                <View style={styles.pickerContainer}>
+                  <Picker
+                    selectedValue={taskProofType}
+                    onValueChange={setTaskProofType}
+                    style={styles.picker}
+                  >
+                    {PROOF_TYPES.map(type => (
+                      <Picker.Item
+                        key={type.value}
+                        label={type.label}
+                        value={type.value}
+                      />
+                    ))}
+                  </Picker>
+                </View>
+              </View>
+            )}
           </ScrollView>
 
           <View style={styles.footer}>
@@ -712,5 +766,20 @@ const styles = StyleSheet.create({
   },
   webInputContainer: {
     marginBottom: 16,
+  },
+  proofToggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 12,
+  },
+  proofToggleLabel: {
+    fontFamily: 'Montserrat-Medium',
+    fontSize: 16,
+    color: colors.text,
+    marginLeft: 12,
   },
 });
