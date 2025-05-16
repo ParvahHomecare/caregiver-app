@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, FlatList, RefreshControl, ActivityIndicator, TextInput, Alert } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, FlatList, RefreshControl, ActivityIndicator, TextInput } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { fetchTasks, updateTaskStatus } from '../../lib/supabase';
 import dayjs from 'dayjs';
@@ -7,6 +7,7 @@ import colors from '../../constants/colors';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar, CircleCheck as CheckCircle, CircleAlert as AlertCircle, Circle as XCircle, Clock, Search, Filter } from 'lucide-react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import AlertDialog from '../../components/AlertDialog';
 
 export default function TasksScreen() {
   const { user } = useAuth();
@@ -17,6 +18,8 @@ export default function TasksScreen() {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [showRevertDialog, setShowRevertDialog] = useState(false);
+  const [selectedTask, setSelectedTask] = useState(null);
 
   const loadTasks = useCallback(async () => {
     if (!user) return;
@@ -25,9 +28,7 @@ export default function TasksScreen() {
       setError(null);
       const { data, error: taskError } = await fetchTasks(user.id);
       
-      if (taskError) {
-        throw taskError;
-      }
+      if (taskError) throw taskError;
       
       setTasks(data || []);
       setFilteredTasks(data || []);
@@ -70,36 +71,29 @@ export default function TasksScreen() {
   }, [loadTasks]);
 
   const handleRevertStatus = async (taskId) => {
-    Alert.alert(
-      'Revert Task Status',
-      'Are you sure you want to revert this task back to pending?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel'
-        },
-        {
-          text: 'Yes, revert to pending',
-          onPress: async () => {
-            try {
-              const updatedTasks = tasks.map(task => 
-                task.id === taskId ? { ...task, status: 'pending', completed_at: null } : task
-              );
-              setTasks(updatedTasks);
-              
-              const { error } = await updateTaskStatus(taskId, 'pending');
-              
-              if (error) {
-                throw error;
-              }
-            } catch (err) {
-              console.error('Error reverting task status:', err);
-              loadTasks();
-            }
-          }
-        }
-      ]
-    );
+    setSelectedTask(taskId);
+    setShowRevertDialog(true);
+  };
+
+  const handleConfirmRevert = async () => {
+    if (!selectedTask) return;
+    
+    try {
+      const updatedTasks = tasks.map(task => 
+        task.id === selectedTask ? { ...task, status: 'pending', completed_at: null } : task
+      );
+      setTasks(updatedTasks);
+      
+      const { error } = await updateTaskStatus(selectedTask, 'pending');
+      
+      if (error) throw error;
+      
+      setShowRevertDialog(false);
+      setSelectedTask(null);
+    } catch (err) {
+      console.error('Error reverting task status:', err);
+      loadTasks();
+    }
   };
 
   const renderTaskItem = ({ item }) => {
@@ -176,7 +170,7 @@ export default function TasksScreen() {
         
         <Text style={styles.taskTitle}>{item.title}</Text>
         
-        <View style={styles.taskInfoContainer}>
+        <View style={styles.taskFooter}>
           {canRevert && (
             <TouchableOpacity 
               style={styles.revertButton}
@@ -202,36 +196,32 @@ export default function TasksScreen() {
     );
   };
 
-  const renderFilters = () => {
-    const filters = [
-      { id: 'all', label: 'All' },
-      { id: 'pending', label: 'Pending' },
-      { id: 'completed', label: 'Completed' },
-      { id: 'missed', label: 'Missed' }
-    ];
-    
-    return (
-      <View style={styles.filtersContainer}>
-        {filters.map(filter => (
-          <TouchableOpacity
-            key={filter.id}
-            style={[
-              styles.filterButton,
-              statusFilter === filter.id && styles.activeFilterButton
-            ]}
-            onPress={() => setStatusFilter(filter.id)}
-          >
-            <Text style={[
-              styles.filterText,
-              statusFilter === filter.id && styles.activeFilterText
-            ]}>
-              {filter.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+  const renderFilters = () => (
+    <View style={styles.filtersContainer}>
+      <View style={styles.filterGroup}>
+        <Text style={styles.filterLabel}>Status:</Text>
+        <View style={styles.filterButtons}>
+          {['all', 'pending', 'completed', 'missed'].map(filter => (
+            <TouchableOpacity
+              key={filter}
+              style={[
+                styles.filterButton,
+                statusFilter === filter && styles.activeFilterButton
+              ]}
+              onPress={() => setStatusFilter(filter)}
+            >
+              <Text style={[
+                styles.filterText,
+                statusFilter === filter && styles.activeFilterText
+              ]}>
+                {filter.charAt(0).toUpperCase() + filter.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
-    );
-  };
+    </View>
+  );
 
   const renderSearchBar = () => {
     return (
@@ -306,6 +296,19 @@ export default function TasksScreen() {
               />
             }
           />
+
+          <AlertDialog
+            visible={showRevertDialog}
+            title="Revert Task Status"
+            message="Are you sure you want to revert this task back to pending?"
+            confirmText="Yes, revert"
+            cancelText="Cancel"
+            onConfirm={handleConfirmRevert}
+            onCancel={() => {
+              setShowRevertDialog(false);
+              setSelectedTask(null);
+            }}
+          />
         </Animated.View>
       )}
     </SafeAreaView>
@@ -349,14 +352,26 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   filtersContainer: {
-    flexDirection: 'row',
     marginBottom: 16,
     paddingHorizontal: 16,
+  },
+  filterGroup: {
+    marginBottom: 8,
+  },
+  filterLabel: {
+    fontFamily: 'Montserrat-Medium',
+    fontSize: 14,
+    color: colors.text,
+    marginBottom: 8,
+  },
+  filterButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   filterButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    marginRight: 8,
     borderRadius: 16,
     backgroundColor: colors.background,
     borderWidth: 1,
@@ -413,12 +428,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 4,
+    gap: 4,
   },
   taskStatusText: {
     fontFamily: 'Montserrat-Medium',
     fontSize: 11,
     color: '#fff',
-    marginLeft: 4,
   },
   taskTitle: {
     fontFamily: 'Montserrat-SemiBold',
@@ -432,26 +447,29 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 6,
   },
-  taskInfoContainer: {
+  taskFooter: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginTop: 8,
   },
-  taskPatient: {
+  revertButton: {
+    backgroundColor: colors.background,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  revertButtonText: {
     fontFamily: 'Montserrat-Medium',
-    fontSize: 13,
+    fontSize: 12,
     color: colors.textSecondary,
   },
-  completeButton: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 4,
-  },
-  completeButtonText: {
-    fontFamily: 'Montserrat-Medium',
-    fontSize: 11,
-    color: '#fff',
+  completedAt: {
+    fontFamily: 'Montserrat-Regular',
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 4,
   },
   emptyContainer: {
     flex: 1,
@@ -498,25 +516,5 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-SemiBold',
     fontSize: 14,
     color: '#fff',
-  },
-  completedAt: {
-    fontFamily: 'Montserrat-Regular',
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  revertButton: {
-    backgroundColor: colors.background,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginLeft: 8,
-  },
-  revertButtonText: {
-    fontFamily: 'Montserrat-Medium',
-    fontSize: 11,
-    color: colors.textSecondary,
   },
 });
