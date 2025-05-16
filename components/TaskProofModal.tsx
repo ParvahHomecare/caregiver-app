@@ -54,24 +54,68 @@ export default function TaskProofModal({
   };
 
   const handlePickImage = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 0.8,
-        allowsEditing: true,
-      });
+    if (Platform.OS === 'web') {
+      // Web file input handling
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = async (e: any) => {
+        const file = e.target.files[0];
+        if (file) {
+          await handleUploadProof(file);
+        }
+      };
+      input.click();
+    } else {
+      try {
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          quality: 0.8,
+          allowsEditing: true,
+        });
 
-      if (!result.canceled && result.assets[0]) {
-        await handleUploadProof(result.assets[0]);
+        if (!result.canceled && result.assets[0]) {
+          await handleUploadProof(result.assets[0]);
+        }
+      } catch (err) {
+        console.error('Error picking image:', err);
+        setError('Failed to select image');
       }
-    } catch (err) {
-      console.error('Error picking image:', err);
-      setError('Failed to select image');
     }
   };
 
   const handleTakePhoto = async () => {
-    setShowCamera(true);
+    if (Platform.OS === 'web') {
+      // Web camera handling using getUserMedia
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        // Create video element and capture button for web camera
+        const videoElement = document.createElement('video');
+        videoElement.srcObject = stream;
+        videoElement.autoplay = true;
+        
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        
+        // Capture photo
+        context?.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+        const photoData = canvas.toDataURL('image/jpeg');
+        
+        // Convert base64 to blob
+        const res = await fetch(photoData);
+        const blob = await res.blob();
+        
+        await handleUploadProof(blob);
+        
+        // Clean up
+        stream.getTracks().forEach(track => track.stop());
+      } catch (err) {
+        console.error('Error accessing camera:', err);
+        setError('Failed to access camera');
+      }
+    } else {
+      setShowCamera(true);
+    }
   };
 
   const handleCameraCapture = async (photo: any) => {
@@ -81,17 +125,37 @@ export default function TaskProofModal({
 
   const startRecording = async () => {
     try {
-      await Audio.requestPermissionsAsync();
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
+      if (Platform.OS === 'web') {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mediaRecorder = new MediaRecorder(stream);
+        const audioChunks: BlobPart[] = [];
 
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-      setRecording(recording);
-      setIsRecording(true);
+        mediaRecorder.ondataavailable = (event) => {
+          audioChunks.push(event.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+          await handleUploadProof(audioBlob);
+          stream.getTracks().forEach(track => track.stop());
+        };
+
+        mediaRecorder.start();
+        setIsRecording(true);
+        setRecording(mediaRecorder as any);
+      } else {
+        await Audio.requestPermissionsAsync();
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true,
+        });
+
+        const { recording } = await Audio.Recording.createAsync(
+          Audio.RecordingOptionsPresets.HIGH_QUALITY
+        );
+        setRecording(recording);
+        setIsRecording(true);
+      }
     } catch (err) {
       console.error('Error starting recording:', err);
       setError('Failed to start recording');
@@ -102,44 +166,86 @@ export default function TaskProofModal({
     if (!recording) return;
 
     try {
-      await recording.stopAndUnloadAsync();
-      const uri = recording.getURI();
+      if (Platform.OS === 'web') {
+        (recording as MediaRecorder).stop();
+      } else {
+        await recording.stopAndUnloadAsync();
+        const uri = recording.getURI();
+        if (uri) {
+          await handleUploadProof({ uri });
+        }
+      }
       setRecording(null);
       setIsRecording(false);
-
-      if (uri) {
-        await handleUploadProof({ uri });
-      }
     } catch (err) {
       console.error('Error stopping recording:', err);
       setError('Failed to save recording');
     }
   };
 
-  if (showCamera) {
-    return (
-      <Modal visible={true} animationType="slide">
-        <CameraView
-          style={StyleSheet.absoluteFill}
-          onMountError={(err) => setError(err.message)}
-        >
-          <View style={styles.cameraControls}>
+  const modalContent = (
+    <View style={[styles.modalContent, Platform.OS === 'web' && styles.webModalContent]}>
+      <View style={styles.modalHeader}>
+        <Text style={styles.modalTitle}>
+          {proofType === 'photo' ? 'Add Photo Proof' : 'Add Voice Note'}
+        </Text>
+        <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+          <X size={24} color={colors.textSecondary} />
+        </TouchableOpacity>
+      </View>
+
+      {error && <Text style={styles.errorText}>{error}</Text>}
+
+      <View style={styles.optionsContainer}>
+        {proofType === 'photo' ? (
+          <>
             <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setShowCamera(false)}
+              style={styles.option}
+              onPress={handlePickImage}
+              disabled={loading}
             >
-              <X size={24} color="#fff" />
+              <Image size={32} color={colors.primary} />
+              <Text style={styles.optionText}>Choose from Gallery</Text>
             </TouchableOpacity>
+
             <TouchableOpacity
-              style={styles.captureButton}
-              onPress={handleCameraCapture}
+              style={styles.option}
+              onPress={handleTakePhoto}
+              disabled={loading}
             >
-              <View style={styles.captureButtonInner} />
+              <Camera size={32} color={colors.primary} />
+              <Text style={styles.optionText}>Take Photo</Text>
             </TouchableOpacity>
-          </View>
-        </CameraView>
-      </Modal>
-    );
+          </>
+        ) : (
+          <TouchableOpacity
+            style={[styles.option, isRecording && styles.recordingOption]}
+            onPress={isRecording ? stopRecording : startRecording}
+            disabled={loading}
+          >
+            <Mic size={32} color={isRecording ? colors.error : colors.primary} />
+            <Text style={styles.optionText}>
+              {isRecording ? 'Stop Recording' : 'Start Recording'}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {loading && (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Uploading proof...</Text>
+        </View>
+      )}
+    </View>
+  );
+
+  if (Platform.OS === 'web') {
+    return visible ? (
+      <View style={styles.webOverlay}>
+        {modalContent}
+      </View>
+    ) : null;
   }
 
   return (
@@ -150,60 +256,7 @@ export default function TaskProofModal({
       onRequestClose={onClose}
     >
       <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>
-              {proofType === 'photo' ? 'Add Photo Proof' : 'Add Voice Note'}
-            </Text>
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <X size={24} color={colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-
-          {error && <Text style={styles.errorText}>{error}</Text>}
-
-          <View style={styles.optionsContainer}>
-            {proofType === 'photo' ? (
-              <>
-                <TouchableOpacity
-                  style={styles.option}
-                  onPress={handlePickImage}
-                  disabled={loading}
-                >
-                  <Image size={32} color={colors.primary} />
-                  <Text style={styles.optionText}>Choose from Gallery</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.option}
-                  onPress={handleTakePhoto}
-                  disabled={loading}
-                >
-                  <Camera size={32} color={colors.primary} />
-                  <Text style={styles.optionText}>Take Photo</Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <TouchableOpacity
-                style={[styles.option, isRecording && styles.recordingOption]}
-                onPress={isRecording ? stopRecording : startRecording}
-                disabled={loading}
-              >
-                <Mic size={32} color={isRecording ? colors.error : colors.primary} />
-                <Text style={styles.optionText}>
-                  {isRecording ? 'Stop Recording' : 'Start Recording'}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {loading && (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={styles.loadingText}>Uploading proof...</Text>
-            </View>
-          )}
-        </View>
+        {modalContent}
       </View>
     </Modal>
   );
@@ -215,12 +268,31 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
+  webOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
   modalContent: {
     backgroundColor: colors.background,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 16,
     maxHeight: '80%',
+  },
+  webModalContent: {
+    borderRadius: 20,
+    maxWidth: 500,
+    width: '90%',
+    maxHeight: '90vh',
+    position: 'relative',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -253,6 +325,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
+    cursor: Platform.OS === 'web' ? 'pointer' : 'default',
   },
   recordingOption: {
     borderColor: colors.error,
@@ -273,27 +346,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     marginTop: 8,
-  },
-  cameraControls: {
-    flex: 1,
-    backgroundColor: 'transparent',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'flex-end',
-    padding: 20,
-  },
-  captureButton: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  captureButtonInner: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#fff',
   },
 });

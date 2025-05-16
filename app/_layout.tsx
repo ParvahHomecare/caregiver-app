@@ -8,7 +8,7 @@ import { AuthProvider } from '../context/AuthContext';
 import { UserProvider } from '../context/UserContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 
 // Prevent the splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -36,7 +36,7 @@ export default function RootLayout() {
   }
 
   return (
-    <GestureHandlerRootView style={styles.container}>
+    <GestureHandlerRootView style={[styles.container, Platform.OS === 'web' && styles.webContainer]}>
       <AuthProvider>
         <UserProvider>
           <SafeAreaProvider>
@@ -60,5 +60,10 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  webContainer: {
+    maxWidth: '100vw',
+    minHeight: '100vh',
+    overflow: 'hidden',
   },
 });
