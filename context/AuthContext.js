@@ -91,24 +91,22 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       if (!isMounted.current) return { success: false, error: 'Component unmounted' };
-      
       setLoading(true);
       
-      // Clear local state first
-      setUser(null);
-      setSession(null);
-      
-      // Attempt to sign out from Supabase
+      // Attempt to sign out from Supabase first
       const { error } = await signOut();
-      if (error) {
-        // If there's an error but it's related to missing session, consider it a success
-        if (error.message?.includes('session_not_found')) {
-          return { success: true };
+      
+      // If there's no error or if the error is just that the session wasn't found,
+      // we can safely clear the local state
+      if (!error || error.message?.includes('session_not_found')) {
+        if (isMounted.current) {
+          setUser(null);
+          setSession(null);
         }
-        throw error;
+        return { success: true };
       }
       
-      return { success: true };
+      throw error;
     } catch (error) {
       console.error('Logout error:', error);
       return { success: false, error: error.message };
