@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, View, Text, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator, Alert } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { fetchTasks, updateTaskStatus } from '../../lib/supabase';
 import dayjs from 'dayjs';
@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Clock, CircleCheck as CheckCircle, CircleAlert as AlertCircle, Circle as XCircle } from 'lucide-react-native';
 import Animated, { FadeInUp, FadeInRight } from 'react-native-reanimated';
 import TaskProofModal from '../../components/TaskProofModal';
+import AlertDialog from '../../components/AlertDialog';
 
 export default function TodayScreen() {
   const { user } = useAuth();
@@ -17,6 +18,7 @@ export default function TodayScreen() {
   const [error, setError] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
   const [showProofModal, setShowProofModal] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   const loadTasks = useCallback(async () => {
     if (!user) return;
@@ -26,9 +28,7 @@ export default function TodayScreen() {
       const today = new Date();
       const { data, error: taskError } = await fetchTasks(user.id, today);
       
-      if (taskError) {
-        throw taskError;
-      }
+      if (taskError) throw taskError;
       
       setTasks(data || []);
     } catch (err) {
@@ -54,39 +54,32 @@ export default function TodayScreen() {
       setSelectedTask(task);
       setShowProofModal(true);
     } else {
-      Alert.alert(
-        'Complete Task',
-        'Are you sure you want to mark this task as complete?',
-        [
-          {
-            text: 'No',
-            style: 'cancel'
-          },
-          {
-            text: 'Yes',
-            onPress: async () => {
-              try {
-                setTasks(
-                  tasks.map(t => 
-                    t.id === task.id ? { ...t, status: 'completed' } : t
-                  )
-                );
-                
-                const { error } = await updateTaskStatus(task.id, 'completed');
-                
-                if (error) {
-                  throw error;
-                }
-              } catch (err) {
-                console.error('Error in handleCompleteTask:', err.message);
-                loadTasks();
-              }
-            }
-          }
-        ]
-      );
+      setSelectedTask(task);
+      setShowConfirmDialog(true);
     }
-  }, [tasks, loadTasks]);
+  }, []);
+
+  const handleConfirmComplete = async () => {
+    if (!selectedTask) return;
+    
+    try {
+      setTasks(
+        tasks.map(t => 
+          t.id === selectedTask.id ? { ...t, status: 'completed' } : t
+        )
+      );
+      
+      const { error } = await updateTaskStatus(selectedTask.id, 'completed');
+      
+      if (error) throw error;
+      
+      setShowConfirmDialog(false);
+      setSelectedTask(null);
+    } catch (err) {
+      console.error('Error completing task:', err);
+      loadTasks();
+    }
+  };
 
   const handleProofSuccess = async () => {
     if (!selectedTask) return;
@@ -100,15 +93,12 @@ export default function TodayScreen() {
       
       const { error } = await updateTaskStatus(selectedTask.id, 'completed');
       
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
       
       setShowProofModal(false);
       setSelectedTask(null);
     } catch (err) {
       console.error('Error completing task:', err);
-      Alert.alert('Error', 'Failed to complete task. Please try again.');
       loadTasks();
     }
   };
@@ -256,6 +246,17 @@ export default function TodayScreen() {
                 tintColor={colors.primary}
               />
             }
+          />
+
+          <AlertDialog
+            visible={showConfirmDialog}
+            title="Complete Task"
+            message="Are you sure you want to mark this task as complete?"
+            onConfirm={handleConfirmComplete}
+            onCancel={() => {
+              setShowConfirmDialog(false);
+              setSelectedTask(null);
+            }}
           />
 
           {selectedTask && (
