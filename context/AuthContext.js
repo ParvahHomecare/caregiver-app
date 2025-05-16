@@ -57,23 +57,11 @@ export const AuthProvider = ({ children }) => {
       if (!isMounted.current) return { success: false, error: 'Component unmounted' };
       setLoading(true);
       const { data, error } = await signIn(email, password);
-      
-      if (error) {
-        // Handle specific error cases
-        if (error.message?.includes('invalid_credentials')) {
-          return { success: false, error: 'Invalid email or password. Please check your credentials and try again.' };
-        }
-        throw error;
-      }
-      
+      if (error) throw error;
       return { success: true };
     } catch (error) {
       console.error('Login error:', error);
-      // Return a user-friendly error message
-      return { 
-        success: false, 
-        error: 'Unable to sign in at this time. Please try again later.' 
-      };
+      return { success: false, error: error.message };
     } finally {
       if (isMounted.current) {
         setLoading(false);
@@ -105,27 +93,23 @@ export const AuthProvider = ({ children }) => {
       if (!isMounted.current) return { success: false, error: 'Component unmounted' };
       setLoading(true);
       
-      // Clear local state first
-      if (isMounted.current) {
-        setUser(null);
-        setSession(null);
-      }
-
-      // Attempt to sign out from Supabase
+      // Attempt to sign out from Supabase first
       const { error } = await signOut();
       
       // If there's no error or if the error is just that the session wasn't found,
-      // consider it a successful logout
+      // we can safely clear the local state
       if (!error || error.message?.includes('session_not_found')) {
+        if (isMounted.current) {
+          setUser(null);
+          setSession(null);
+        }
         return { success: true };
       }
       
-      // For any other error, throw it
       throw error;
     } catch (error) {
       console.error('Logout error:', error);
-      // Even if there's an error with Supabase, we've already cleared the local state
-      return { success: true };
+      return { success: false, error: error.message };
     } finally {
       if (isMounted.current) {
         setLoading(false);
