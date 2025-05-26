@@ -1,6 +1,10 @@
 # dependencies
 node_modules/
 
+# native folders (for EAS Prebuild compatibility)
+android/
+ios/
+
 # expo
 .expo/
 dist/

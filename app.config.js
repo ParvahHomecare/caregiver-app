@@ -23,7 +23,7 @@ export default {
       output: 'server',
       favicon: './assets/images/favicon.png'
     },
-    plugins: ['expo-router'],
+    plugins: ['expo-router', 'expo-secure-store'],
     experiments: {
       typedRoutes: true
     },
