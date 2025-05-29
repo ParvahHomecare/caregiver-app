@@ -12,7 +12,8 @@ export default {
     userInterfaceStyle: 'automatic',
     newArchEnabled: true,
     ios: {
-      supportsTablet: true
+      supportsTablet: true,
+      bundleIdentifier: 'com.parvahhealthcare.caregiver'
     },
     android: {
       package: 'com.parvahhealthcare.caregiver',
