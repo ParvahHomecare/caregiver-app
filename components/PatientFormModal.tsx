@@ -10,12 +10,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { X, Trash2 } from 'lucide-react-native';
 import colors from '../constants/colors';
 import { createPatient, updatePatient, deletePatient } from '../lib/supabase';
 import { Picker } from '@react-native-picker/picker';
+import AlertDialog from './AlertDialog';
 
 const genderOptions = [
   { label: 'Male', value: 'male' },
@@ -31,6 +31,7 @@ export default function PatientFormModal({ visible, patient, onClose, onSave }) 
   const [address, setAddress] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     if (patient) {
@@ -74,46 +75,25 @@ export default function PatientFormModal({ visible, patient, onClose, onSave }) 
     return true;
   };
 
-  const handleDelete = async () => {
-    Alert.alert(
-      'Delete Patient',
-      'Are you sure you want to delete this patient? This will also remove all associated tasks and caregiver assignments. This action cannot be undone.',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel'
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            setLoading(true);
-            try {
-              const { error: deleteError } = await deletePatient(patient.id);
-              if (deleteError) throw deleteError;
-              
-              Alert.alert(
-                'Success',
-                'Patient has been deleted successfully',
-                [{ text: 'OK' }]
-              );
-              
-              onSave(); // Refresh the patient list
-              handleClose();
-            } catch (err) {
-              console.error('Error deleting patient:', err);
-              Alert.alert(
-                'Error',
-                'Failed to delete patient. Please try again.',
-                [{ text: 'OK' }]
-              );
-            } finally {
-              setLoading(false);
-            }
-          }
-        }
-      ]
-    );
+  const handleDelete = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    setLoading(true);
+    try {
+      const { error: deleteError } = await deletePatient(patient.id);
+      if (deleteError) throw deleteError;
+      
+      onSave(); // Refresh the patient list
+      handleClose();
+    } catch (err) {
+      console.error('Error deleting patient:', err);
+      setError('Failed to delete patient. Please try again.');
+    } finally {
+      setLoading(false);
+      setShowDeleteConfirm(false);
+    }
   };
 
   const handleSave = async () => {
@@ -148,136 +128,149 @@ export default function PatientFormModal({ visible, patient, onClose, onSave }) 
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={handleClose}
-    >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.modalContainer}
+    <>
+      <Modal
+        visible={visible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={handleClose}
       >
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>
-              {patient ? 'Edit Patient' : 'Add Patient'}
-            </Text>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={handleClose}
-            >
-              <X size={24} color={colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.formContainer}>
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Full Name</Text>
-              <TextInput
-                style={styles.input}
-                value={fullName}
-                onChangeText={setFullName}
-                placeholder="Enter patient's full name"
-                placeholderTextColor={colors.textLight}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Gender</Text>
-              <View style={styles.pickerContainer}>
-                <Picker
-                  selectedValue={gender}
-                  onValueChange={setGender}
-                  style={styles.picker}
-                >
-                  <Picker.Item label="Select gender" value="" />
-                  {genderOptions.map(option => (
-                    <Picker.Item
-                      key={option.value}
-                      label={option.label}
-                      value={option.value}
-                    />
-                  ))}
-                </Picker>
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Age</Text>
-              <TextInput
-                style={styles.input}
-                value={age}
-                onChangeText={setAge}
-                placeholder="Enter age"
-                placeholderTextColor={colors.textLight}
-                keyboardType="numeric"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Medical History</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                value={medicalHistory}
-                onChangeText={setMedicalHistory}
-                placeholder="Enter medical history"
-                placeholderTextColor={colors.textLight}
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Address</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                value={address}
-                onChangeText={setAddress}
-                placeholder="Enter address"
-                placeholderTextColor={colors.textLight}
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
-              />
-            </View>
-          </ScrollView>
-
-          <View style={styles.footer}>
-            {patient && (
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalContainer}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {patient ? 'Edit Patient' : 'Add Patient'}
+              </Text>
               <TouchableOpacity
-                style={styles.deleteButton}
-                onPress={handleDelete}
+                style={styles.closeButton}
+                onPress={handleClose}
+              >
+                <X size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.formContainer}>
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Full Name</Text>
+                <TextInput
+                  style={styles.input}
+                  value={fullName}
+                  onChangeText={setFullName}
+                  placeholder="Enter patient's full name"
+                  placeholderTextColor={colors.textLight}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Gender</Text>
+                <View style={styles.pickerContainer}>
+                  <Picker
+                    selectedValue={gender}
+                    onValueChange={setGender}
+                    style={styles.picker}
+                  >
+                    <Picker.Item label="Select gender" value="" />
+                    {genderOptions.map(option => (
+                      <Picker.Item
+                        key={option.value}
+                        label={option.label}
+                        value={option.value}
+                      />
+                    ))}
+                  </Picker>
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Age</Text>
+                <TextInput
+                  style={styles.input}
+                  value={age}
+                  onChangeText={setAge}
+                  placeholder="Enter age"
+                  placeholderTextColor={colors.textLight}
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Medical History</Text>
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  value={medicalHistory}
+                  onChangeText={setMedicalHistory}
+                  placeholder="Enter medical history"
+                  placeholderTextColor={colors.textLight}
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Address</Text>
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  value={address}
+                  onChangeText={setAddress}
+                  placeholder="Enter address"
+                  placeholderTextColor={colors.textLight}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                />
+              </View>
+            </ScrollView>
+
+            <View style={styles.footer}>
+              {patient && (
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={handleDelete}
+                  disabled={loading}
+                >
+                  <Trash2 size={20} color={colors.error} />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={[styles.button, styles.cancelButton]}
+                onPress={handleClose}
                 disabled={loading}
               >
-                <Trash2 size={20} color={colors.error} />
+                <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              style={[styles.button, styles.cancelButton]}
-              onPress={handleClose}
-              disabled={loading}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.saveButton]}
-              onPress={handleSave}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.saveButtonText}>Save</Text>
-              )}
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.saveButton]}
+                onPress={handleSave}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Save</Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      <AlertDialog
+        visible={showDeleteConfirm}
+        title="Delete Patient"
+        message={`Are you sure you want to delete ${patient?.full_name}? This will also remove all associated tasks and caregiver assignments. This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmStyle="danger"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
+    </>
   );
 }
 
@@ -366,6 +359,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  deleteButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.error,
+  },
   cancelButton: {
     backgroundColor: colors.background,
     borderWidth: 1,
@@ -384,16 +387,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#fff',
   },
-  deleteButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.error,
-  },
 });
-
-export default PatientFormModal

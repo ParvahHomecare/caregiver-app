@@ -15,6 +15,7 @@ interface AlertDialogProps {
   message: string;
   confirmText?: string;
   cancelText?: string;
+  confirmStyle?: 'danger' | 'default';
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -23,8 +24,9 @@ export default function AlertDialog({
   visible,
   title,
   message,
-  confirmText = 'Yes',
-  cancelText = 'No',
+  confirmText = 'Confirm',
+  cancelText = 'Cancel',
+  confirmStyle = 'default',
   onConfirm,
   onCancel,
 }: AlertDialogProps) {
@@ -40,10 +42,18 @@ export default function AlertDialog({
           <Text style={styles.cancelButtonText}>{cancelText}</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.button, styles.confirmButton]}
+          style={[
+            styles.button,
+            confirmStyle === 'danger' ? styles.dangerButton : styles.confirmButton,
+          ]}
           onPress={onConfirm}
         >
-          <Text style={styles.confirmButtonText}>{confirmText}</Text>
+          <Text style={[
+            styles.confirmButtonText,
+            confirmStyle === 'danger' && styles.dangerButtonText,
+          ]}>
+            {confirmText}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -129,6 +139,9 @@ const styles = StyleSheet.create({
   confirmButton: {
     backgroundColor: colors.primary,
   },
+  dangerButton: {
+    backgroundColor: colors.error,
+  },
   cancelButtonText: {
     fontFamily: 'Montserrat-SemiBold',
     fontSize: 16,
@@ -137,6 +150,9 @@ const styles = StyleSheet.create({
   confirmButtonText: {
     fontFamily: 'Montserrat-SemiBold',
     fontSize: 16,
+    color: '#fff',
+  },
+  dangerButtonText: {
     color: '#fff',
   },
 });
