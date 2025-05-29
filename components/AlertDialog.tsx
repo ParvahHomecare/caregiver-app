@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1000,
+    zIndex: 9999,
   },
   content: {
     backgroundColor: colors.background,
