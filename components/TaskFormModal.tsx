@@ -48,6 +48,8 @@ const DateTimeInput = ({
   minimumDate = null,
   label
 }) => {
+  const [show, setShow] = useState(false);
+
   if (Platform.OS === 'web') {
     const inputType = mode === 'date' ? 'date' : 'time';
     const dateValue = mode === 'date' 
@@ -95,7 +97,7 @@ const DateTimeInput = ({
       <Text style={styles.label}>{label}</Text>
       <TouchableOpacity 
         style={styles.datePickerButton}
-        onPress={() => {}}
+        onPress={() => setShow(true)}
       >
         <Calendar size={20} color={colors.primary} style={styles.dateIcon} />
         <Text style={styles.dateText}>
@@ -105,17 +107,18 @@ const DateTimeInput = ({
           }
         </Text>
       </TouchableOpacity>
-      <DateTimePicker
+      {show && (<DateTimePicker
         value={value}
         mode={mode}
         display="default"
         onChange={(event, selectedValue) => {
-          if (selectedValue) {
+          setShow(false);
+          if (event.type === 'set' && selectedValue) {
             onChange(selectedValue);
           }
         }}
         minimumDate={minimumDate}
-      />
+      />)}
     </View>
   );
 };
