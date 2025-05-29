@@ -31,7 +31,7 @@ export default function PatientFormModal({ visible, patient, onClose, onSave }) 
   const [address, setAddress] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   useEffect(() => {
     if (patient) {
@@ -75,24 +75,22 @@ export default function PatientFormModal({ visible, patient, onClose, onSave }) 
     return true;
   };
 
-  const handleDelete = () => {
-    setShowDeleteConfirm(true);
+  const handleDeletePress = () => {
+    setShowConfirmDialog(true);
   };
 
-  const handleConfirmDelete = async () => {
+  const confirmDeletePatient = async () => {
+    setShowConfirmDialog(false);
     setLoading(true);
     try {
       const { error: deleteError } = await deletePatient(patient.id);
       if (deleteError) throw deleteError;
-      
-      onSave(); // Refresh the patient list
+      onSave();
       handleClose();
     } catch (err) {
       console.error('Error deleting patient:', err);
-      setError('Failed to delete patient. Please try again.');
     } finally {
       setLoading(false);
-      setShowDeleteConfirm(false);
     }
   };
 
@@ -231,7 +229,7 @@ export default function PatientFormModal({ visible, patient, onClose, onSave }) 
               {patient && (
                 <TouchableOpacity
                   style={styles.deleteButton}
-                  onPress={handleDelete}
+                  onPress={handleDeletePress}
                   disabled={loading}
                 >
                   <Trash2 size={20} color={colors.error} />
@@ -261,14 +259,13 @@ export default function PatientFormModal({ visible, patient, onClose, onSave }) 
       </Modal>
 
       <AlertDialog
-        visible={showDeleteConfirm}
+        visible={showConfirmDialog}
         title="Delete Patient"
-        message={`Are you sure you want to delete ${patient?.full_name}? This will also remove all associated tasks and caregiver assignments. This action cannot be undone.`}
+        message="Are you sure you want to delete this patient? This will also remove all associated tasks and caregiver assignments."
         confirmText="Delete"
         cancelText="Cancel"
-        confirmStyle="danger"
-        onConfirm={handleConfirmDelete}
-        onCancel={() => setShowDeleteConfirm(false)}
+        onConfirm={confirmDeletePatient}
+        onCancel={() => setShowConfirmDialog(false)}
       />
     </>
   );
@@ -359,16 +356,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  deleteButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.error,
-  },
   cancelButton: {
     backgroundColor: colors.background,
     borderWidth: 1,
@@ -386,5 +373,15 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-SemiBold',
     fontSize: 16,
     color: '#fff',
+  },
+  deleteButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.error,
   },
 });
