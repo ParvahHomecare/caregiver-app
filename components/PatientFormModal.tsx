@@ -126,148 +126,146 @@ export default function PatientFormModal({ visible, patient, onClose, onSave }) 
   };
 
   return (
-    <>
-      <Modal
-        visible={visible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={handleClose}
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={handleClose}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.modalContainer}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalContainer}
-        >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {patient ? 'Edit Patient' : 'Add Patient'}
-              </Text>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={handleClose}
-              >
-                <X size={24} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.formContainer}>
-              {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Full Name</Text>
-                <TextInput
-                  style={styles.input}
-                  value={fullName}
-                  onChangeText={setFullName}
-                  placeholder="Enter patient's full name"
-                  placeholderTextColor={colors.textLight}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Gender</Text>
-                <View style={styles.pickerContainer}>
-                  <Picker
-                    selectedValue={gender}
-                    onValueChange={setGender}
-                    style={styles.picker}
-                  >
-                    <Picker.Item label="Select gender" value="" />
-                    {genderOptions.map(option => (
-                      <Picker.Item
-                        key={option.value}
-                        label={option.label}
-                        value={option.value}
-                      />
-                    ))}
-                  </Picker>
-                </View>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Age</Text>
-                <TextInput
-                  style={styles.input}
-                  value={age}
-                  onChangeText={setAge}
-                  placeholder="Enter age"
-                  placeholderTextColor={colors.textLight}
-                  keyboardType="numeric"
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Medical History</Text>
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  value={medicalHistory}
-                  onChangeText={setMedicalHistory}
-                  placeholder="Enter medical history"
-                  placeholderTextColor={colors.textLight}
-                  multiline
-                  numberOfLines={4}
-                  textAlignVertical="top"
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Address</Text>
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  value={address}
-                  onChangeText={setAddress}
-                  placeholder="Enter address"
-                  placeholderTextColor={colors.textLight}
-                  multiline
-                  numberOfLines={3}
-                  textAlignVertical="top"
-                />
-              </View>
-            </ScrollView>
-
-            <View style={styles.footer}>
-              {patient && (
-                <TouchableOpacity
-                  style={styles.deleteButton}
-                  onPress={handleDeletePress}
-                  disabled={loading}
-                >
-                  <Trash2 size={20} color={colors.error} />
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity
-                style={[styles.button, styles.cancelButton]}
-                onPress={handleClose}
-                disabled={loading}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.button, styles.saveButton]}
-                onPress={handleSave}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.saveButtonText}>Save</Text>
-                )}
-              </TouchableOpacity>
-            </View>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>
+              {patient ? 'Edit Patient' : 'Add Patient'}
+            </Text>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={handleClose}
+            >
+              <X size={24} color={colors.textSecondary} />
+            </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
 
-      <AlertDialog
-        visible={showConfirmDialog}
-        title="Delete Patient"
-        message="Are you sure you want to delete this patient? This will also remove all associated tasks and caregiver assignments."
-        confirmText="Delete"
-        cancelText="Cancel"
-        onConfirm={confirmDeletePatient}
-        onCancel={() => setShowConfirmDialog(false)}
-      />
-    </>
+          <ScrollView style={styles.formContainer}>
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Full Name</Text>
+              <TextInput
+                style={styles.input}
+                value={fullName}
+                onChangeText={setFullName}
+                placeholder="Enter patient's full name"
+                placeholderTextColor={colors.textLight}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Gender</Text>
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={gender}
+                  onValueChange={setGender}
+                  style={styles.picker}
+                >
+                  <Picker.Item label="Select gender" value="" />
+                  {genderOptions.map(option => (
+                    <Picker.Item
+                      key={option.value}
+                      label={option.label}
+                      value={option.value}
+                    />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Age</Text>
+              <TextInput
+                style={styles.input}
+                value={age}
+                onChangeText={setAge}
+                placeholder="Enter age"
+                placeholderTextColor={colors.textLight}
+                keyboardType="numeric"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Medical History</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                value={medicalHistory}
+                onChangeText={setMedicalHistory}
+                placeholder="Enter medical history"
+                placeholderTextColor={colors.textLight}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Address</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                value={address}
+                onChangeText={setAddress}
+                placeholder="Enter address"
+                placeholderTextColor={colors.textLight}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
+            </View>
+          </ScrollView>
+
+          <View style={styles.footer}>
+            {patient && (
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={handleDeletePress}
+                disabled={loading}
+              >
+                <Trash2 size={20} color={colors.error} />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={[styles.button, styles.cancelButton]}
+              onPress={handleClose}
+              disabled={loading}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, styles.saveButton]}
+              onPress={handleSave}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.saveButtonText}>Save</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          <AlertDialog
+            visible={showConfirmDialog}
+            title="Delete Patient"
+            message="Are you sure you want to delete this patient? This will also remove all associated tasks and caregiver assignments."
+            confirmText="Delete"
+            cancelText="Cancel"
+            onConfirm={confirmDeletePatient}
+            onCancel={() => setShowConfirmDialog(false)}
+          />
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
 
